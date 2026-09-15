@@ -129,6 +129,20 @@
     return Promise.reject(new Error('no ad provider configured'));
   }
 
+  const AD_TIMEOUT_MS = 20000;
+
+  // A legitimate "no ad available" outcome doesn't always resolve or reject
+  // the ad SDK's promise — it can just hang. Without this, the button would
+  // stay stuck on "Loading ad…" forever any time an auction has no fill,
+  // which is a normal, common outcome, not an error.
+  function withTimeout(promise, ms) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('ad_timeout')), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
   function preloadNextMonetagAd() {
     // Monetag benefits from an explicit preload call between watches;
     // Adsgram's controller handles its own fetching internally.
@@ -145,7 +159,7 @@
     watchStatus.textContent = 'Loading ad…';
 
     try {
-      await showCurrentAd();
+      await withTimeout(showCurrentAd(), AD_TIMEOUT_MS);
       watchStatus.textContent = 'Crediting reward…';
       const result = await api('/api/watch-complete', { method: 'POST' });
       if (result?.error === undefined && result?.reason === undefined) {
@@ -157,8 +171,9 @@
         watchStatus.textContent = describeLimit(result);
         hapticResult('warning');
       }
-    } catch {
-      watchStatus.textContent = 'Ad was skipped or failed — no reward this time.';
+    } catch (err) {
+      console.warn('[ad]', err);
+      watchStatus.textContent = 'No ad available right now — please try again in a moment.';
       hapticResult('error');
     } finally {
       watchBtn.disabled = false;
