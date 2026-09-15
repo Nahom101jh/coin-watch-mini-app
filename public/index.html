@@ -24,10 +24,10 @@
             <circle cx="24" cy="24" r="19" fill="none" stroke="var(--coin-deep)" stroke-width="2.5" />
             <text x="24" y="31" text-anchor="middle" font-size="19" font-weight="700" fill="var(--ink)" font-family="'Space Grotesk', sans-serif">¢</text>
           </svg>
-          <div class="balance-number" id="balance">0</div>
+          <div class="balance-number is-loading" id="balance">···</div>
         </div>
       </div>
-      <p class="balance-label" id="balanceSub">points earned</p>
+      <p class="balance-label" id="balanceSub">Loading…</p>
       <p class="milestone-label" id="milestoneLabel"></p>
     </header>
 
@@ -52,7 +52,9 @@
     </section>
 
     <section id="panelLeaderboard" class="panel is-hidden">
-      <ol class="list" id="leaderboardList"></ol>
+      <ol class="list" id="leaderboardList">
+        <li class="empty">Loading…</li>
+      </ol>
     </section>
 
     <section id="panelWithdraw" class="panel is-hidden">
@@ -62,11 +64,11 @@
 
         <div class="progress-row">
           <div class="progress-item">
-            <div class="progress-value" id="inviteProgress">0/0</div>
+            <div class="progress-value is-loading" id="inviteProgress">···</div>
             <div class="progress-label">friends invited</div>
           </div>
           <div class="progress-item">
-            <div class="progress-value" id="qualifyProgress">0/0</div>
+            <div class="progress-value is-loading" id="qualifyProgress">···</div>
             <div class="progress-label">invitees at 50+ ads</div>
           </div>
         </div>

@@ -9,6 +9,18 @@
     applyTelegramTheme(tg);
   }
 
+  // Haptics are a no-op outside real Telegram (tg.HapticFeedback won't
+  // exist), so every call here is safe to fire unconditionally.
+  function hapticTap(style = 'light') {
+    tg?.HapticFeedback?.impactOccurred?.(style);
+  }
+  function hapticResult(type) {
+    tg?.HapticFeedback?.notificationOccurred?.(type);
+  }
+  function hapticSelect() {
+    tg?.HapticFeedback?.selectionChanged?.();
+  }
+
   // --- Dev fallback: lets you test the UI in a normal browser tab. ---
   const isInsideTelegram = Boolean(initData);
   const devUserId = isInsideTelegram ? null : getOrCreateDevId();
@@ -131,6 +143,7 @@
       watchStatus.textContent = 'Ad is still loading — try again in a moment.';
       return;
     }
+    hapticTap('light');
     watchBtn.disabled = true;
     watchStatus.textContent = 'Loading ad…';
 
@@ -141,12 +154,15 @@
       if (result?.error === undefined && result?.reason === undefined) {
         renderUser(result);
         watchStatus.textContent = `+${rewardPerAd} points!`;
+        hapticResult('success');
         refreshLeaderboard();
       } else {
         watchStatus.textContent = describeLimit(result);
+        hapticResult('warning');
       }
     } catch {
       watchStatus.textContent = 'Ad was skipped or failed — no reward this time.';
+      hapticResult('error');
     } finally {
       watchBtn.disabled = false;
       preloadNextMonetagAd();
@@ -157,7 +173,13 @@
   tabLeaderboard.addEventListener('click', () => switchTab('leaderboard'));
   tabWithdraw.addEventListener('click', () => switchTab('withdraw'));
 
+  let activeTab = 'activity';
+
   function switchTab(name) {
+    if (name === activeTab) return;
+    hapticSelect();
+    activeTab = name;
+
     const tabs = { activity: tabActivity, leaderboard: tabLeaderboard, withdraw: tabWithdraw };
     const panels = { activity: panelActivity, leaderboard: panelLeaderboard, withdraw: panelWithdraw };
 
@@ -166,12 +188,18 @@
       tabs[key].classList.toggle('is-active', isActive);
       tabs[key].setAttribute('aria-selected', String(isActive));
       panels[key].classList.toggle('is-hidden', !isActive);
+      if (isActive) {
+        panels[key].classList.remove('panel-enter');
+        void panels[key].offsetWidth; // restart the animation each time
+        panels[key].classList.add('panel-enter');
+      }
     }
   }
 
   let lastBalance = null;
 
   function renderUser(user) {
+    balanceEl.classList.remove('is-loading');
     balanceEl.textContent = user.balance;
     balanceSubEl.textContent = `points earned · ${user.adsWatchedToday} ads today`;
     updateRing(user.balance);
@@ -235,6 +263,8 @@
     const status = await api('/api/referral-status', { method: 'POST' });
     if (!status || status.error) return;
 
+    inviteProgressEl.classList.remove('is-loading');
+    qualifyProgressEl.classList.remove('is-loading');
     inviteProgressEl.textContent = `${status.invitedCount}/${status.requiredInvites}`;
     qualifyProgressEl.textContent = `${status.qualifyingCount}/${status.requiredQualifyingInvites}`;
     withdrawRuleEl.textContent =
@@ -263,6 +293,7 @@
       refLinkEl.select();
       document.execCommand('copy');
     }
+    hapticResult('success');
     withdrawStatus.textContent = 'Link copied!';
     setTimeout(() => {
       if (withdrawStatus.textContent === 'Link copied!') withdrawStatus.textContent = '';
@@ -270,18 +301,22 @@
   });
 
   withdrawBtn.addEventListener('click', async () => {
+    hapticTap('medium');
     withdrawBtn.disabled = true;
     withdrawStatus.textContent = 'Submitting request…';
 
     const result = await api('/api/withdraw-request', { method: 'POST' });
 
     if (result && !result.error) {
+      hapticResult('success');
       withdrawStatus.textContent = `Requested — ${result.etb} ETB. We'll reach out to send it.`;
       withdrawBtnLabel.textContent = 'Withdrawal pending review';
     } else if (result?.reason === 'already_pending') {
+      hapticResult('warning');
       withdrawStatus.textContent = 'You already have a pending request.';
       withdrawBtnLabel.textContent = 'Withdrawal pending review';
     } else {
+      hapticResult('error');
       withdrawStatus.textContent = 'Could not submit — try again shortly.';
       withdrawBtn.disabled = false;
     }
