@@ -1,16 +1,22 @@
 const { Telegraf, Markup } = require('telegraf');
+const store = require('./store');
 
 function createBot({ token, webAppUrl }) {
   const bot = new Telegraf(token);
 
   bot.start((ctx) => {
-    const ref = ctx.startPayload; // set when opened via a referral deep link
-    const url = ref ? `${webAppUrl}?ref=${encodeURIComponent(ref)}` : webAppUrl;
+    const userId = String(ctx.from.id);
+    const ref = ctx.startPayload || null; // set when opened via a referral deep link
+
+    // This is the ONLY place a referral gets recorded. Telegram itself is
+    // invoking this handler with ctx.from's real, authenticated id — unlike
+    // a query string on the web app's URL, this can't be typed by hand.
+    store.getOrCreateUser(userId, ctx.from.first_name, ref);
 
     ctx.reply(
       `Welcome, ${ctx.from.first_name}! 👋\n\n` +
         `Watch short ads and earn points. Tap below to open the app.`,
-      Markup.inlineKeyboard([Markup.button.webApp('🪙 Open Rewards App', url)])
+      Markup.inlineKeyboard([Markup.button.webApp('🪙 Open Rewards App', webAppUrl)])
     );
   });
 

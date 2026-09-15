@@ -42,7 +42,16 @@ if (!BOT_TOKEN || BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Never let the browser or Telegram's WebView cache the app's own files —
+// otherwise every future update needs a manual cache-clear to actually
+// show up, which isn't obvious and easy to mistake for a broken deploy.
+app.use(
+  express.static(path.join(__dirname, '..', 'public'), {
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    },
+  })
+);
 
 // Tell the frontend whether real ads are configured yet, without exposing secrets.
 app.get('/api/config', (_req, res) => {
@@ -64,7 +73,11 @@ app.post('/api/session', (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
-  const record = store.getOrCreateUser(user.id, user.first_name || user.username, req.body?.ref);
+  // Referrals are recorded exclusively in bot.js's /start handler — the
+  // only event we can trust, since Telegram itself invokes it with the
+  // user's real id. Anything in a request body can be typed by hand, so
+  // this route never accepts or sets a referrer, even for brand-new users.
+  const record = store.getOrCreateUser(user.id, user.first_name || user.username);
   res.json(publicUser(record));
 });
 

@@ -37,9 +37,6 @@
   const watchStatus = document.getElementById('watchStatus');
   const activityList = document.getElementById('activityList');
   const leaderboardList = document.getElementById('leaderboardList');
-  // Referral code from the deep link bot.js appends to the Mini App URL
-  // (t.me/YourBot?start=X -> ?ref=X on this page), read once at load.
-  const refParam = new URLSearchParams(window.location.search).get('ref');
   const myUserId = isInsideTelegram ? tg?.initDataUnsafe?.user?.id : devUserId;
 
   const tabActivity = document.getElementById('tabActivity');
@@ -343,7 +340,7 @@
     const headers = { 'Content-Type': 'application/json' };
     if (initData) headers['X-Telegram-Init-Data'] = initData;
 
-    const body = opts.method === 'POST' ? JSON.stringify({ devUserId, ref: refParam }) : undefined;
+    const body = opts.method === 'POST' ? JSON.stringify({ devUserId }) : undefined;
 
     try {
       const res = await fetch(pathname, { ...opts, headers, body });

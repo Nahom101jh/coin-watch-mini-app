@@ -121,8 +121,20 @@ Users unlock a "Request Withdrawal" button by inviting friends:
 - Each user gets a personal invite link (`t.me/YourBot?start=<their id>`) shown
   in the Withdraw tab.
 - When someone opens the bot through that link, `bot.js` reads the referral
-  code from `/start` and passes it through to the Mini App, which links the
-  new user to their inviter (`server/store.js` → `getOrCreateUser`).
+  code from `/start` and links the new user to their inviter right there
+  (`server/store.js` → `getOrCreateUser`). This is the *only* place a
+  referral is ever recorded — Telegram itself invokes this handler with the
+  user's real, authenticated id, unlike a web request body, which anyone
+  can fabricate by hand. Earlier versions accepted a `?ref=` query string on
+  the web app's own URL, which meant anyone could grant themselves fake
+  invites by typing a URL — that path has been removed entirely.
+
+  **Testing this yourself:** since referrals now only count through a real
+  `/start` deep link, you can't fake a second "friend" by opening the web
+  URL directly with a `?ref=` parameter anymore (that used to work, but was
+  exactly the hole this fix closes). To test for real, open your invite
+  link from a second Telegram account, or lower the thresholds in
+  `server/store.js` temporarily and have one real friend try it.
 - Withdrawal unlocks once a user has invited enough friends, and enough of
   those friends have watched enough ads themselves — the exact numbers live
   in one place, `server/store.js`:
