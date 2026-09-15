@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Coin Watch — Admin</title>
+<link rel="stylesheet" href="style.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body class="admin">
+
+  <main class="screen">
+
+    <div id="gate" class="gate">
+      <h1 class="admin-title">Admin dashboard</h1>
+      <p class="admin-sub">Enter the ADMIN_KEY from your .env file.</p>
+      <input type="password" id="keyInput" placeholder="Admin key" autocomplete="off" />
+      <button id="unlockBtn">Unlock</button>
+      <p class="error" id="gateError"></p>
+    </div>
+
+    <div id="dashboard" class="is-hidden">
+      <header class="admin-header">
+        <h1 class="admin-title">Coin Watch — Admin</h1>
+        <p class="admin-sub">Live snapshot of demo points, not real ad revenue.</p>
+      </header>
+
+      <div class="stat-grid" id="statGrid"></div>
+
+      <h2 class="admin-section-title">Ads watched — last 7 days</h2>
+      <div class="bar-chart" id="barChart"></div>
+
+      <h2 class="admin-section-title">Leaderboard</h2>
+      <ol class="list" id="leaderboardList"></ol>
+
+      <h2 class="admin-section-title">Withdrawal requests</h2>
+      <ul class="list" id="withdrawalsList"></ul>
+
+      <h2 class="admin-section-title">Recent activity</h2>
+      <ul class="list" id="eventsList"></ul>
+    </div>
+
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>

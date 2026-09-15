@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Coin Watch</title>
+<link rel="stylesheet" href="style.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+
+  <main class="screen">
+    <header class="hero">
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 140 140" aria-hidden="true">
+          <circle class="ring-track" cx="70" cy="70" r="62" />
+          <circle class="ring-progress" id="ringProgress" cx="70" cy="70" r="62" />
+        </svg>
+        <div class="ring-center">
+          <svg class="coin" id="coinIcon" viewBox="0 0 48 48" aria-hidden="true">
+            <circle cx="24" cy="24" r="19" fill="var(--coin)" />
+            <circle cx="24" cy="24" r="19" fill="none" stroke="var(--coin-deep)" stroke-width="2.5" />
+            <text x="24" y="31" text-anchor="middle" font-size="19" font-weight="700" fill="var(--ink)" font-family="'Space Grotesk', sans-serif">¢</text>
+          </svg>
+          <div class="balance-number" id="balance">0</div>
+        </div>
+      </div>
+      <p class="balance-label" id="balanceSub">points earned</p>
+      <p class="milestone-label" id="milestoneLabel"></p>
+    </header>
+
+    <p class="rate-banner">1 point = 1 ETB</p>
+
+    <button class="watch-btn" id="watchBtn">
+      <span class="watch-btn-notch"></span>
+      <span id="watchBtnLabel">Watch an ad, earn points</span>
+    </button>
+    <p class="watch-status" id="watchStatus" aria-live="polite"></p>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" id="tabActivity" role="tab" aria-selected="true">Activity</button>
+      <button class="tab" id="tabLeaderboard" role="tab" aria-selected="false">Leaderboard</button>
+      <button class="tab" id="tabWithdraw" role="tab" aria-selected="false">Withdraw</button>
+    </nav>
+
+    <section id="panelActivity" class="panel">
+      <ul class="list" id="activityList">
+        <li class="empty">No ads watched yet — your history shows up here.</li>
+      </ul>
+    </section>
+
+    <section id="panelLeaderboard" class="panel is-hidden">
+      <ol class="list" id="leaderboardList"></ol>
+    </section>
+
+    <section id="panelWithdraw" class="panel is-hidden">
+      <div class="withdraw-card">
+        <p class="withdraw-title">Invite friends to unlock withdrawal</p>
+        <p class="withdraw-rule" id="withdrawRule"></p>
+
+        <div class="progress-row">
+          <div class="progress-item">
+            <div class="progress-value" id="inviteProgress">0/0</div>
+            <div class="progress-label">friends invited</div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-value" id="qualifyProgress">0/0</div>
+            <div class="progress-label">invitees at 50+ ads</div>
+          </div>
+        </div>
+
+        <label class="field-label" for="refLink">Your invite link</label>
+        <div class="ref-row">
+          <input type="text" id="refLink" readonly />
+          <button id="copyRefBtn">Copy</button>
+        </div>
+
+        <button class="watch-btn withdraw-btn" id="withdrawBtn" disabled>
+          <span id="withdrawBtnLabel">Invite more friends to unlock</span>
+        </button>
+        <p class="watch-status" id="withdrawStatus" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <footer class="footnote">
+      School project demo — points are illustrative, not a real payout.
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

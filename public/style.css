@@ -1,0 +1,530 @@
+:root {
+  /* Fallback palette for testing outside Telegram. Inside Telegram, app.js
+     overwrites the --tg-* values with the user's real theme. */
+  --tg-bg: #12172A;
+  --tg-surface: #1B2340;
+  --tg-surface-2: #232C4E;
+  --tg-text: #F3F5FC;
+  --tg-hint: #8D96BE;
+  --tg-button: #3FD8C7;
+  --tg-button-text: #0B2420;
+
+  --ink: #12172A;
+  --coin: #FFC24B;
+  --coin-deep: #C97C1E;
+  --ring-track: rgba(255, 194, 75, 0.16);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--tg-bg);
+  color: var(--tg-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.screen {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 30px 20px 24px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Hero / balance ring ---------- */
+
+.hero {
+  text-align: center;
+  padding: 8px 0 20px;
+}
+
+.ring-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+}
+
+.ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring-track {
+  fill: none;
+  stroke: var(--ring-track);
+  stroke-width: 8;
+}
+
+.ring-progress {
+  fill: none;
+  stroke: var(--coin);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 389.6; /* 2 * PI * 62 */
+  stroke-dashoffset: 389.6;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.coin {
+  width: 30px;
+  height: 30px;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.coin.is-spinning {
+  animation: coin-flip 0.7s ease;
+}
+
+@keyframes coin-flip {
+  0%   { transform: rotateY(0deg) scale(1); }
+  40%  { transform: rotateY(360deg) scale(1.18); }
+  100% { transform: rotateY(720deg) scale(1); }
+}
+
+.balance-number {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.balance-label {
+  margin: 14px 0 0;
+  color: var(--tg-hint);
+  font-size: 14px;
+}
+
+.milestone-label {
+  margin: 4px 0 0;
+  color: var(--tg-hint);
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.rate-banner {
+  text-align: center;
+  background: var(--tg-surface);
+  color: var(--coin);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: 999px;
+  padding: 7px 14px;
+  margin: 0 auto 18px;
+  width: fit-content;
+}
+
+/* ---------- Watch button ---------- */
+
+.watch-btn {
+  position: relative;
+  border: none;
+  border-radius: 18px;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 19px 20px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.watch-btn-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 5px;
+  border-radius: 0 0 6px 6px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.watch-btn:not(:disabled)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgba(63, 216, 199, 0.5);
+  animation: pulse 2.4s ease-out infinite;
+}
+
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(63, 216, 199, 0.35); }
+  70%  { box-shadow: 0 0 0 14px rgba(63, 216, 199, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(63, 216, 199, 0); }
+}
+
+.watch-btn:active {
+  transform: scale(0.97);
+}
+
+.watch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.watch-btn:disabled::after {
+  animation: none;
+}
+
+.watch-status {
+  text-align: center;
+  min-height: 20px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--tg-hint);
+}
+
+/* ---------- Tabs ---------- */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 26px 0 14px;
+  background: var(--tg-surface);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--tg-hint);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.tab.is-active {
+  background: var(--tg-surface-2);
+  color: var(--tg-text);
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.panel.is-hidden {
+  display: none;
+}
+
+/* ---------- Lists ---------- */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--tg-surface);
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 14px;
+}
+
+.list li.empty {
+  justify-content: center;
+  color: var(--tg-hint);
+  padding: 16px 14px;
+}
+
+.row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--coin);
+  color: var(--ink);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.row-name {
+  font-weight: 600;
+}
+
+.row-value {
+  color: var(--coin);
+  font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.footnote {
+  margin-top: auto;
+  padding-top: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--tg-hint);
+  opacity: 0.75;
+}
+
+/* ---------- Withdraw tab ---------- */
+
+.withdraw-card {
+  background: var(--tg-surface);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.withdraw-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+
+.withdraw-rule {
+  color: var(--tg-hint);
+  font-size: 13px;
+  margin: 0 0 16px;
+  line-height: 1.4;
+}
+
+.progress-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.progress-item {
+  background: var(--tg-surface-2);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.progress-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--coin);
+}
+
+.progress-label {
+  font-size: 12px;
+  color: var(--tg-hint);
+  margin-top: 2px;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--tg-hint);
+  margin-bottom: 6px;
+}
+
+.ref-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.ref-row input {
+  flex: 1;
+  background: var(--tg-surface-2);
+  border: none;
+  color: var(--tg-text);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.ref-row button {
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  border: none;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.withdraw-btn {
+  width: 100%;
+}
+
+.withdraw-btn:disabled::after {
+  display: none;
+}
+
+/* ================= Admin dashboard ================= */
+
+body.admin .screen {
+  max-width: 720px;
+}
+
+.admin-header {
+  margin-bottom: 22px;
+}
+
+.admin-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  margin: 0 0 4px;
+}
+
+.admin-sub {
+  color: var(--tg-hint);
+  font-size: 14px;
+  margin: 0;
+}
+
+.gate {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 320px;
+  margin: 60px auto;
+  text-align: center;
+}
+
+.gate input {
+  background: var(--tg-surface);
+  border: 1px solid var(--tg-surface-2);
+  color: var(--tg-text);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+}
+
+.gate button {
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.gate .error {
+  color: #FF8A8A;
+  font-size: 13px;
+  min-height: 18px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.stat-tile {
+  background: var(--tg-surface);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.stat-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--coin);
+}
+
+.stat-label {
+  color: var(--tg-hint);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.admin-section-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  margin: 24px 0 10px;
+  color: var(--tg-hint);
+}
+
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 100px;
+  background: var(--tg-surface);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.bar {
+  flex: 1;
+  background: var(--coin);
+  border-radius: 4px 4px 0 0;
+  min-height: 3px;
+  position: relative;
+}
+
+.bar-empty {
+  color: var(--tg-hint);
+  font-size: 13px;
+  margin: auto;
+}
+
+.mark-paid-btn {
+  background: var(--coin);
+  color: var(--ink);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.row-status {
+  font-size: 12px;
+  color: var(--tg-hint);
+  flex-shrink: 0;
+}
