@@ -24,6 +24,39 @@ AD_PROVIDER=monetag
 ```
 (or `adsgram`). Restart the server after changing any of these.
 
+## Persistent storage (important on free hosting)
+
+All user data — balances, referrals, withdrawal requests — lives in
+[Upstash](https://upstash.com), a free Redis database, not a local file.
+
+**Why this matters:** free hosts like Render's free tier don't guarantee
+your app's local disk survives a restart. Every time the container sleeps
+and wakes back up (or redeploys for any reason, including changing an
+environment variable), it starts from the exact code in your GitHub repo —
+and a locally-written file isn't part of that. A plain `data.json` file
+would get silently wiped on every single restart, which is exactly what
+happened during development before this was fixed: watching an ad and
+earning points, then having a routine restart erase it back to zero.
+
+**Setup:**
+
+1. Sign up free at [upstash.com](https://upstash.com), create a Redis
+   database (any region is fine).
+2. From its dashboard, copy the **REST URL** and **REST TOKEN**.
+3. Add them to `.env` (and to Render's Environment tab, if deployed):
+
+```
+UPSTASH_REDIS_REST_URL=https://your-db-name.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token-here
+```
+
+4. Restart the server. That's it — `server/store.js` handles everything
+   else identically to before; only *where* the data lives changed, not
+   how any of the app's logic works.
+
+The free tier (500K commands/month, 256MB storage) is far more than a
+class project needs.
+
 ## How it fits together
 
 ```
@@ -99,7 +132,9 @@ instead of the ngrok one.
 - **Real ad revenue**: happens entirely on Monetag's side, tied to your
   `MONETAG_ZONE_ID` / dashboard account — nothing in this code touches money.
 - **Demo user reward**: `server/store.js` → `creditAdReward()`. It's plain
-  points in a JSON file (`server/data.json`, created automatically).
+  points, stored in Upstash Redis (`server/store.js`). Free-tier hosts like
+  Render wipe local files on every restart, so this data deliberately lives
+  outside the app's own filesystem — see "Persistent storage" below.
 
 To swap points for something real later (Telegram Stars, a gift-card API,
 etc.), that function is the one place you'd change.
@@ -189,7 +224,7 @@ server/
   bot.js             Telegraf bot (/start opens the Mini App)
   store.js           JSON-file data store (users, balances, history)
   verifyTelegram.js  Validates Telegram's signed initData
-  data.json          Created automatically on first run
+  store.js            Data layer — see "Persistent storage" below
 public/
   index.html         Mini App markup
   style.css          Styling (adapts to the user's Telegram theme)

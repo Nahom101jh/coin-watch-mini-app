@@ -69,7 +69,7 @@ app.get('/api/config', (_req, res) => {
 });
 
 // Called once, when the Mini App opens, to identify/create the user.
-app.post('/api/session', (req, res) => {
+app.post('/api/session', async (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
@@ -77,16 +77,16 @@ app.post('/api/session', (req, res) => {
   // only event we can trust, since Telegram itself invokes it with the
   // user's real id. Anything in a request body can be typed by hand, so
   // this route never accepts or sets a referrer, even for brand-new users.
-  const record = store.getOrCreateUser(user.id, user.first_name || user.username);
+  const record = await store.getOrCreateUser(user.id, user.first_name || user.username);
   res.json(publicUser(record));
 });
 
 // Called after the ad SDK's Promise resolves (ad genuinely watched).
-app.post('/api/watch-complete', (req, res) => {
+app.post('/api/watch-complete', async (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
-  const result = store.creditAdReward(user.id, Number(REWARD_PER_AD), {
+  const result = await store.creditAdReward(user.id, Number(REWARD_PER_AD), {
     maxPerDay: Number(MAX_ADS_PER_DAY),
     minSecondsBetween: Number(MIN_SECONDS_BETWEEN_ADS),
   });
@@ -95,43 +95,43 @@ app.post('/api/watch-complete', (req, res) => {
   res.json(publicUser(result.user));
 });
 
-app.get('/api/leaderboard', (_req, res) => {
-  res.json(store.getLeaderboard(10));
+app.get('/api/leaderboard', async (_req, res) => {
+  res.json(await store.getLeaderboard(10));
 });
 
-app.post('/api/referral-status', (req, res) => {
+app.post('/api/referral-status', async (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
-  const status = store.getReferralStatus(user.id);
+  const status = await store.getReferralStatus(user.id);
   if (!status) return res.status(404).json({ error: 'unknown_user' });
   res.json(status);
 });
 
-app.post('/api/withdraw-request', (req, res) => {
+app.post('/api/withdraw-request', async (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
-  const result = store.requestWithdrawal(user.id);
+  const result = await store.requestWithdrawal(user.id);
   if (!result.ok) return res.status(400).json(result);
   res.json(result.request);
 });
 
 // Simple key check — fine for a school project demo, not real auth.
 // The key never touches the client except when the admin types it in.
-app.get('/api/admin/stats', (req, res) => {
+app.get('/api/admin/stats', async (req, res) => {
   if (!ADMIN_KEY) return res.status(503).json({ error: 'admin_key_not_set' });
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
 
   res.json({
-    stats: store.getStats(),
-    leaderboard: store.getLeaderboard(10),
-    recentEvents: store.getRecentEvents(20),
-    withdrawalRequests: store.listWithdrawalRequests(),
+    stats: await store.getStats(),
+    leaderboard: await store.getLeaderboard(10),
+    recentEvents: await store.getRecentEvents(20),
+    withdrawalRequests: await store.listWithdrawalRequests(),
   });
 });
 
-app.post('/api/admin/withdrawals/:id/status', (req, res) => {
+app.post('/api/admin/withdrawals/:id/status', async (req, res) => {
   if (!ADMIN_KEY) return res.status(503).json({ error: 'admin_key_not_set' });
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
 
@@ -140,7 +140,7 @@ app.post('/api/admin/withdrawals/:id/status', (req, res) => {
     return res.status(400).json({ error: 'invalid_status' });
   }
 
-  const updated = store.setWithdrawalStatus(req.params.id, status);
+  const updated = await store.setWithdrawalStatus(req.params.id, status);
   if (!updated) return res.status(404).json({ error: 'not_found' });
   res.json(updated);
 });

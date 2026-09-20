@@ -4,14 +4,14 @@ const store = require('./store');
 function createBot({ token, webAppUrl }) {
   const bot = new Telegraf(token);
 
-  bot.start((ctx) => {
+  bot.start(async (ctx) => {
     const userId = String(ctx.from.id);
     const ref = ctx.startPayload || null; // set when opened via a referral deep link
 
     // This is the ONLY place a referral gets recorded. Telegram itself is
     // invoking this handler with ctx.from's real, authenticated id — unlike
     // a query string on the web app's URL, this can't be typed by hand.
-    store.getOrCreateUser(userId, ctx.from.first_name, ref);
+    await store.getOrCreateUser(userId, ctx.from.first_name, ref);
 
     ctx.reply(
       `Welcome, ${ctx.from.first_name}! 👋\n\n` +

@@ -1,11 +1,14 @@
-// Minimal file-based store. No database server to install — good fit for a
-// school project. Swap this module out for a real DB later without touching
-// the API routes, since everything goes through the functions below.
+// Persistent store backed by Upstash Redis (a free, permanent, genuinely
+// persistent key-value store — unlike Render's free-tier disk, which gets
+// wiped on every container restart). The whole app's data lives under one
+// Redis key, as a single JSON blob, mirroring the old file-based shape so
+// nothing else in the codebase needed to change except awaiting these calls.
 
-const fs = require('fs');
-const path = require('path');
+const { Redis } = require('@upstash/redis');
 
-const DB_PATH = path.join(__dirname, 'data.json');
+const redis = Redis.fromEnv(); // reads UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
+
+const DB_KEY = 'coin-watch:db';
 
 // Withdrawal eligibility rules — change these numbers here and everything
 // (API, frontend copy) reads from this single source of truth.
@@ -14,38 +17,33 @@ const REQUIRED_QUALIFYING_INVITES = 5;
 const QUALIFYING_ADS_THRESHOLD = 50;
 const POINTS_PER_ETB = 1;
 
-function load() {
-  if (!fs.existsSync(DB_PATH)) {
-    return { users: {}, events: [], withdrawalRequests: [] };
-  }
-  try {
-    const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-    if (!db.events) db.events = [];
-    if (!db.withdrawalRequests) db.withdrawalRequests = [];
+async function load() {
+  const db = await redis.get(DB_KEY);
+  if (!db) return { users: {}, events: [], withdrawalRequests: [] };
 
-    // Upgrade any user records saved before referrals existed, so old data
-    // never crashes new code — missing fields just default to empty.
-    for (const user of Object.values(db.users || {})) {
-      if (!Array.isArray(user.invitedUserIds)) user.invitedUserIds = [];
-      if (user.referredBy === undefined) user.referredBy = null;
-    }
+  if (!db.events) db.events = [];
+  if (!db.withdrawalRequests) db.withdrawalRequests = [];
 
-    return db;
-  } catch {
-    return { users: {}, events: [], withdrawalRequests: [] };
+  // Upgrade any user records saved before referrals existed, so old data
+  // never crashes new code — missing fields just default to empty.
+  for (const user of Object.values(db.users || {})) {
+    if (!Array.isArray(user.invitedUserIds)) user.invitedUserIds = [];
+    if (user.referredBy === undefined) user.referredBy = null;
   }
+
+  return db;
 }
 
-function save(db) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+async function save(db) {
+  await redis.set(DB_KEY, db);
 }
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
-function getOrCreateUser(id, name, referredBy) {
-  const db = load();
+async function getOrCreateUser(id, name, referredBy) {
+  const db = await load();
   if (!db.users[id]) {
     db.users[id] = {
       id,
@@ -68,19 +66,19 @@ function getOrCreateUser(id, name, referredBy) {
       if (!referrer.invitedUserIds.includes(id)) referrer.invitedUserIds.push(id);
     }
 
-    save(db);
+    await save(db);
   }
   return db.users[id];
 }
 
-function getUser(id) {
-  const db = load();
+async function getUser(id) {
+  const db = await load();
   return db.users[id] || null;
 }
 
 // Returns { ok: true, user } or { ok: false, reason }
-function creditAdReward(id, amount, { maxPerDay, minSecondsBetween }) {
-  const db = load();
+async function creditAdReward(id, amount, { maxPerDay, minSecondsBetween }) {
+  const db = await load();
   const user = db.users[id];
   if (!user) return { ok: false, reason: 'unknown_user' };
 
@@ -110,25 +108,25 @@ function creditAdReward(id, amount, { maxPerDay, minSecondsBetween }) {
   db.events.unshift({ at: new Date().toISOString(), userId: id, name: user.name, amount });
   db.events = db.events.slice(0, 200); // keep the log bounded
 
-  save(db);
+  await save(db);
   return { ok: true, user };
 }
 
-function getLeaderboard(limit = 10) {
-  const db = load();
+async function getLeaderboard(limit = 10) {
+  const db = await load();
   return Object.values(db.users)
     .sort((a, b) => b.balance - a.balance)
     .slice(0, limit)
     .map((u) => ({ name: u.name, balance: u.balance }));
 }
 
-function getRecentEvents(limit = 20) {
-  const db = load();
+async function getRecentEvents(limit = 20) {
+  const db = await load();
   return db.events.slice(0, limit);
 }
 
-function getStats() {
-  const db = load();
+async function getStats() {
+  const db = await load();
   const users = Object.values(db.users);
   const today = todayKey();
 
@@ -141,8 +139,8 @@ function getStats() {
   };
 }
 
-function getReferralStatus(id) {
-  const db = load();
+async function getReferralStatus(id) {
+  const db = await load();
   const user = db.users[id];
   if (!user) return null;
 
@@ -169,12 +167,12 @@ function getReferralStatus(id) {
 }
 
 // Returns { ok: true, request } or { ok: false, reason }
-function requestWithdrawal(id) {
-  const db = load();
+async function requestWithdrawal(id) {
+  const db = await load();
   const user = db.users[id];
   if (!user) return { ok: false, reason: 'unknown_user' };
 
-  const status = getReferralStatus(id);
+  const status = await getReferralStatus(id);
   if (!status.eligible) return { ok: false, reason: 'not_eligible' };
   if (status.hasPendingRequest) return { ok: false, reason: 'already_pending' };
 
@@ -188,21 +186,21 @@ function requestWithdrawal(id) {
     status: 'pending',
   };
   db.withdrawalRequests.push(request);
-  save(db);
+  await save(db);
   return { ok: true, request };
 }
 
-function listWithdrawalRequests() {
-  const db = load();
+async function listWithdrawalRequests() {
+  const db = await load();
   return [...db.withdrawalRequests].reverse(); // newest first
 }
 
-function setWithdrawalStatus(requestId, status) {
-  const db = load();
+async function setWithdrawalStatus(requestId, status) {
+  const db = await load();
   const request = db.withdrawalRequests.find((r) => r.id === requestId);
   if (!request) return null;
   request.status = status;
-  save(db);
+  await save(db);
   return request;
 }
 
