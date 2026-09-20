@@ -145,6 +145,22 @@ app.post('/api/admin/withdrawals/:id/status', async (req, res) => {
   res.json(updated);
 });
 
+// Manually create or edit a user's balance/name — for correcting a bug,
+// compensating someone, or adding an entry you control directly. Creates
+// the user if the id doesn't already exist.
+app.post('/api/admin/users/:id', async (req, res) => {
+  if (!ADMIN_KEY) return res.status(503).json({ error: 'admin_key_not_set' });
+  if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
+
+  const { name, balance } = req.body || {};
+  if (balance !== undefined && !Number.isFinite(Number(balance))) {
+    return res.status(400).json({ error: 'invalid_balance' });
+  }
+
+  const updated = await store.adminSetUser(req.params.id, { name, balance });
+  res.json(updated);
+});
+
 function resolveUser(req) {
   // Real Telegram launch: verify the signed initData.
   const initData = req.headers['x-telegram-init-data'];

@@ -11,6 +11,12 @@
   const withdrawalsList = document.getElementById('withdrawalsList');
   const eventsList = document.getElementById('eventsList');
 
+  const editUserId = document.getElementById('editUserId');
+  const editUserName = document.getElementById('editUserName');
+  const editUserBalance = document.getElementById('editUserBalance');
+  const editUserBtn = document.getElementById('editUserBtn');
+  const editUserStatus = document.getElementById('editUserStatus');
+
   const savedKey = sessionStorage.getItem('adminKey');
   if (savedKey) tryUnlock(savedKey);
 
@@ -135,6 +141,40 @@
     });
     if (res.ok) tryUnlock(key); // refetch and re-render everything
   }
+
+  editUserBtn.addEventListener('click', async () => {
+    const id = editUserId.value.trim();
+    if (!id) {
+      editUserStatus.textContent = 'Enter a user ID first.';
+      return;
+    }
+
+    const body = {};
+    if (editUserName.value.trim()) body.name = editUserName.value.trim();
+    if (editUserBalance.value.trim()) body.balance = Number(editUserBalance.value);
+
+    editUserBtn.disabled = true;
+    editUserStatus.textContent = 'Saving…';
+
+    const key = sessionStorage.getItem('adminKey');
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+      body: JSON.stringify(body),
+    });
+
+    editUserBtn.disabled = false;
+
+    if (res.ok) {
+      const updated = await res.json();
+      editUserStatus.textContent = `Saved — ${updated.name} now has ${updated.balance} points.`;
+      editUserName.value = '';
+      editUserBalance.value = '';
+      tryUnlock(key); // refresh the leaderboard/stats to reflect the change
+    } else {
+      editUserStatus.textContent = 'Could not save — check the values and try again.';
+    }
+  });
 
   function renderBarChart(events) {
     const days = lastNDays(7);

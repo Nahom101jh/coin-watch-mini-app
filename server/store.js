@@ -204,6 +204,36 @@ async function setWithdrawalStatus(requestId, status) {
   return request;
 }
 
+// Admin-only: directly set a user's balance and/or name. Creates the user
+// if the id doesn't exist yet (useful for adding a manually-tracked entry).
+// Returns the updated user record.
+async function adminSetUser(id, { name, balance } = {}) {
+  const db = await load();
+
+  if (!db.users[id]) {
+    db.users[id] = {
+      id,
+      name: name || `User ${id}`,
+      balance: 0,
+      adsWatchedTotal: 0,
+      adsWatchedToday: 0,
+      lastAdDay: todayKey(),
+      lastAdAt: 0,
+      history: [],
+      referredBy: null,
+      invitedUserIds: [],
+    };
+  }
+
+  if (name !== undefined && name !== null && name !== '') db.users[id].name = name;
+  if (balance !== undefined && balance !== null && Number.isFinite(Number(balance))) {
+    db.users[id].balance = Math.max(0, Number(balance));
+  }
+
+  await save(db);
+  return db.users[id];
+}
+
 module.exports = {
   getOrCreateUser,
   getUser,
@@ -215,4 +245,5 @@ module.exports = {
   requestWithdrawal,
   listWithdrawalRequests,
   setWithdrawalStatus,
+  adminSetUser,
 };

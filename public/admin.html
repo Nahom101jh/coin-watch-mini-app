@@ -34,6 +34,29 @@
       <h2 class="admin-section-title">Leaderboard</h2>
       <ol class="list" id="leaderboardList"></ol>
 
+      <h2 class="admin-section-title">Edit a user's balance</h2>
+      <div class="withdraw-card">
+        <p class="withdraw-rule">
+          Create or edit an entry directly — for fixing a mistake, compensating
+          someone, or adding your own entry. This edits real stored data, so
+          use it thoughtfully.
+        </p>
+        <label class="field-label" for="editUserId">User ID (Telegram id, or anything for a custom entry)</label>
+        <div class="ref-row">
+          <input type="text" id="editUserId" placeholder="e.g. 123456789 or demo-1" />
+        </div>
+        <label class="field-label" for="editUserName">Name (leave blank to keep unchanged)</label>
+        <div class="ref-row">
+          <input type="text" id="editUserName" placeholder="Display name" />
+        </div>
+        <label class="field-label" for="editUserBalance">Balance (leave blank to keep unchanged)</label>
+        <div class="ref-row">
+          <input type="number" id="editUserBalance" placeholder="e.g. 250" min="0" />
+        </div>
+        <button class="watch-btn withdraw-btn" id="editUserBtn">Save</button>
+        <p class="watch-status" id="editUserStatus" aria-live="polite"></p>
+      </div>
+
       <h2 class="admin-section-title">Withdrawal requests</h2>
       <ul class="list" id="withdrawalsList"></ul>
 
