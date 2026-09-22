@@ -312,7 +312,7 @@
   let lastBalance = null;
 
   function renderUser(user) {
-    balanceEl.classList.remove('is-loading');
+    balanceEl.classList.remove('skeleton-text');
     balanceEl.textContent = user.balance;
     balanceSubEl.textContent = `points earned · ${user.adsWatchedToday} ads today`;
     updateRing(user.balance);
@@ -376,8 +376,8 @@
     const status = await api('/api/referral-status', { method: 'POST' });
     if (!status || status.error) return;
 
-    inviteProgressEl.classList.remove('is-loading');
-    qualifyProgressEl.classList.remove('is-loading');
+    inviteProgressEl.classList.remove('skeleton-text');
+    qualifyProgressEl.classList.remove('skeleton-text');
     inviteProgressEl.textContent = `${status.invitedCount}/${status.requiredInvites}`;
     qualifyProgressEl.textContent = `${status.qualifyingCount}/${status.requiredQualifyingInvites}`;
     withdrawRuleEl.textContent =
