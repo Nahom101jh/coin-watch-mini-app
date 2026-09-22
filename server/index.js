@@ -18,6 +18,8 @@ const {
   MAX_ADS_PER_DAY = 20,
   MIN_SECONDS_BETWEEN_ADS = 30,
   ADMIN_KEY = '',
+  TADS_WIDGET_ID = '',
+  TADS_WEBHOOK_SECRET = '',
 } = process.env;
 
 let botUsername = null; // filled in once the bot connects, used to build referral links
@@ -93,6 +95,51 @@ app.post('/api/watch-complete', async (req, res) => {
 
   if (!result.ok) return res.status(429).json(result);
   res.json(publicUser(result.user));
+});
+
+// Server-to-server postback from Tads (https://tads.me), configured as the
+// widget's "Webhook URL". Tads calls this itself — no browser involved —
+// when a user watches (Fullscreen widgets) or clicks (TGB widgets) an ad.
+// Docs: https://docs.tads.me/getting-started/publishers/webhooks
+//
+// Tads sends { telegram_id, widget_id } as GET query params or a POST body,
+// depending on which method you pick in the widget form. It does not sign
+// or authenticate these requests, so this route requires its own shared
+// secret (?key=...) appended to the Webhook URL you paste into Tads — set
+// TADS_WEBHOOK_SECRET below to whatever you put in that query param.
+app.all('/api/tads-webhook', async (req, res) => {
+  const params = { ...req.query, ...(req.body || {}) };
+  const { telegram_id: telegramId, widget_id: widgetId, key } = params;
+
+  // Reject anyone who doesn't know the secret — without this, anyone who
+  // finds this URL could credit themselves unlimited balance.
+  if (!TADS_WEBHOOK_SECRET || key !== TADS_WEBHOOK_SECRET) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  if (!telegramId) return res.status(400).json({ error: 'missing_telegram_id' });
+
+  // Optional extra check: only accept postbacks for the widget you expect,
+  // in case you ever add a second widget with its own webhook later.
+  if (TADS_WIDGET_ID && String(widgetId) !== String(TADS_WIDGET_ID)) {
+    return res.status(400).json({ error: 'unexpected_widget_id' });
+  }
+
+  // Tads only tells us the user exists — it doesn't know their name, so
+  // this never creates a brand-new user; they must have opened the Mini
+  // App at least once already (which is when getOrCreateUser first runs).
+  const user = await store.getUser(String(telegramId));
+  if (!user) return res.status(404).json({ error: 'unknown_user' });
+
+  const result = await store.creditAdReward(String(telegramId), Number(REWARD_PER_AD), {
+    maxPerDay: Number(MAX_ADS_PER_DAY),
+    minSecondsBetween: Number(MIN_SECONDS_BETWEEN_ADS),
+  });
+
+  // Respond 200 either way — Tads just needs an ack that the postback was
+  // received, and a 429 here would likely just trigger their own retries.
+  if (!result.ok) return res.status(200).json(result);
+  res.status(200).json({ ok: true });
 });
 
 app.get('/api/leaderboard', async (_req, res) => {
