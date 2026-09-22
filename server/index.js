@@ -57,16 +57,14 @@ app.use(
 
 // Tell the frontend whether real ads are configured yet, without exposing secrets.
 app.get('/api/config', (_req, res) => {
-  // These IDs are embedded in public client-side script tags by design
-  // (both networks put them directly in the HTML) — not secrets, unlike
-  // the bot token.
   res.json({
     adProvider: resolveAdProvider(),
     adsConfigured: Boolean(resolveAdProvider()),
     monetagZoneId: MONETAG_ZONE_ID || null,
     adsgramBlockId: ADSGRAM_BLOCK_ID || null,
+    tadsWidgetId: TADS_WIDGET_ID || null,
     rewardPerAd: Number(REWARD_PER_AD),
-    botUsername, // null until the bot has connected once
+    botUsername,
   });
 });
 
