@@ -20,14 +20,15 @@
         </svg>
         <div class="ring-center">
           <svg class="coin" id="coinIcon" viewBox="0 0 48 48" aria-hidden="true">
-            <circle cx="24" cy="24" r="19" fill="var(--coin)" />
-            <circle cx="24" cy="24" r="19" fill="none" stroke="var(--coin-deep)" stroke-width="2.5" />
-            <text x="24" y="31" text-anchor="middle" font-size="19" font-weight="700" fill="var(--ink)" font-family="'Space Grotesk', sans-serif">¢</text>
+            <circle cx="24" cy="24" r="19" fill="var(--gold)" />
+            <circle cx="24" cy="24" r="19" fill="none" stroke="var(--gold-strong)" stroke-width="2.5" />
+            <text x="24" y="31" text-anchor="middle" font-size="19" font-weight="700" fill="var(--ink-950)" font-family="'Space Grotesk', sans-serif">¢</text>
           </svg>
-          <div class="balance-number is-loading" id="balance">···</div>
+          <div class="balance-value skeleton-text" id="balance">···</div>
+          <div class="balance-unit">points</div>
         </div>
       </div>
-      <p class="balance-label" id="balanceSub">Loading…</p>
+      <p class="balance-meta" id="balanceSub">Loading…</p>
       <p class="milestone-label" id="milestoneLabel"></p>
     </header>
 
@@ -64,11 +65,11 @@
 
         <div class="progress-row">
           <div class="progress-item">
-            <div class="progress-value is-loading" id="inviteProgress">···</div>
+            <div class="progress-value skeleton-text" id="inviteProgress">···</div>
             <div class="progress-label">friends invited</div>
           </div>
           <div class="progress-item">
-            <div class="progress-value is-loading" id="qualifyProgress">···</div>
+            <div class="progress-value skeleton-text" id="qualifyProgress">···</div>
             <div class="progress-label">invitees at 50+ ads</div>
           </div>
         </div>
