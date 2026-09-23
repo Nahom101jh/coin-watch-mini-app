@@ -4,6 +4,14 @@ const store = require('./store');
 function createBot({ token, webAppUrl }) {
   const bot = new Telegraf(token);
 
+  // Without this, an error thrown while handling any single user's message
+  // (e.g. a Redis hiccup during getOrCreateUser) becomes an unhandled
+  // rejection that can crash the whole server for all 100k users, not just
+  // fail that one /start command.
+  bot.catch((err, ctx) => {
+    console.error(`[bot] error handling update ${ctx.updateType}:`, err);
+  });
+
   bot.start(async (ctx) => {
     const userId = String(ctx.from.id);
     const ref = ctx.startPayload || null; // set when opened via a referral deep link

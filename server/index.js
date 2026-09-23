@@ -57,19 +57,37 @@ app.use(
 
 // Tell the frontend whether real ads are configured yet, without exposing secrets.
 app.get('/api/config', (_req, res) => {
+  // These IDs are embedded in public client-side script tags by design
+  // (both networks put them directly in the HTML) — not secrets, unlike
+  // the bot token.
   res.json({
     adProvider: resolveAdProvider(),
     adsConfigured: Boolean(resolveAdProvider()),
     monetagZoneId: MONETAG_ZONE_ID || null,
     adsgramBlockId: ADSGRAM_BLOCK_ID || null,
+    // Tads isn't picked by resolveAdProvider() — it's a fallback network
+    // the frontend tries whenever the primary provider above has no ad,
+    // not a competing "which one is primary" choice.
     tadsWidgetId: TADS_WIDGET_ID || null,
     rewardPerAd: Number(REWARD_PER_AD),
-    botUsername,
+    botUsername, // null until the bot has connected once
   });
 });
 
+// Wraps a route handler so a thrown error (e.g. store_lock_timeout under
+// heavy concurrent load) returns a clean 503 instead of hanging the
+// request or relying solely on the process-wide safety net above.
+function asyncRoute(fn) {
+  return (req, res) => {
+    fn(req, res).catch((err) => {
+      console.error(`[route error] ${req.method} ${req.path}:`, err?.message || err);
+      if (!res.headersSent) res.status(503).json({ error: 'temporarily_unavailable' });
+    });
+  };
+}
+
 // Called once, when the Mini App opens, to identify/create the user.
-app.post('/api/session', async (req, res) => {
+app.post('/api/session', asyncRoute(async (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
@@ -79,10 +97,10 @@ app.post('/api/session', async (req, res) => {
   // this route never accepts or sets a referrer, even for brand-new users.
   const record = await store.getOrCreateUser(user.id, user.first_name || user.username);
   res.json(publicUser(record));
-});
+}));
 
 // Called after the ad SDK's Promise resolves (ad genuinely watched).
-app.post('/api/watch-complete', async (req, res) => {
+app.post('/api/watch-complete', asyncRoute(async (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
@@ -93,7 +111,7 @@ app.post('/api/watch-complete', async (req, res) => {
 
   if (!result.ok) return res.status(429).json(result);
   res.json(publicUser(result.user));
-});
+}));
 
 // Server-to-server postback from Tads (https://tads.me), configured as the
 // widget's "Webhook URL". Tads calls this itself — no browser involved —
@@ -105,7 +123,7 @@ app.post('/api/watch-complete', async (req, res) => {
 // or authenticate these requests, so this route requires its own shared
 // secret (?key=...) appended to the Webhook URL you paste into Tads — set
 // TADS_WEBHOOK_SECRET below to whatever you put in that query param.
-app.all('/api/tads-webhook', async (req, res) => {
+app.all('/api/tads-webhook', asyncRoute(async (req, res) => {
   const params = { ...req.query, ...(req.body || {}) };
   const { telegram_id: telegramId, widget_id: widgetId, key } = params;
 
@@ -138,29 +156,29 @@ app.all('/api/tads-webhook', async (req, res) => {
   // received, and a 429 here would likely just trigger their own retries.
   if (!result.ok) return res.status(200).json(result);
   res.status(200).json({ ok: true });
-});
+}));
 
 app.get('/api/leaderboard', async (_req, res) => {
   res.json(await store.getLeaderboard(10));
 });
 
-app.post('/api/referral-status', async (req, res) => {
+app.post('/api/referral-status', asyncRoute(async (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
   const status = await store.getReferralStatus(user.id);
   if (!status) return res.status(404).json({ error: 'unknown_user' });
   res.json(status);
-});
+}));
 
-app.post('/api/withdraw-request', async (req, res) => {
+app.post('/api/withdraw-request', asyncRoute(async (req, res) => {
   const user = resolveUser(req);
   if (!user) return res.status(401).json({ error: 'invalid_telegram_data' });
 
   const result = await store.requestWithdrawal(user.id);
   if (!result.ok) return res.status(400).json(result);
   res.json(result.request);
-});
+}));
 
 // Simple key check — fine for a school project demo, not real auth.
 // The key never touches the client except when the admin types it in.
@@ -232,6 +250,17 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
+// Without these, ANY uncaught error anywhere — a bad ad-network response, a
+// Redis hiccup, the Telegram polling conflict that crashed a real deploy —
+// takes down the entire process, disconnecting every one of your users at
+// once. Logging and continuing is far safer than crashing at real scale.
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException] server kept running:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection] server kept running:', reason);
+});
+
 if (BOT_TOKEN && !BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
   const bot = createBot({ token: BOT_TOKEN, webAppUrl: WEBAPP_URL });
   bot.telegram
@@ -242,7 +271,15 @@ if (BOT_TOKEN && !BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
     .catch(() => {
       console.warn('Could not fetch bot username — referral links will be unavailable until it does.');
     });
-  bot.launch();
+  // bot.launch() only resolves when polling stops, and rejects if Telegram
+  // itself has a problem — e.g. "409 Conflict: terminated by other
+  // getUpdates request" when two copies of this bot run at once (this
+  // exact error crashed a real deploy before this .catch existed). Now it
+  // logs instead of crashing; the web app and all its API routes keep
+  // running even if the bot itself can't currently poll.
+  bot.launch().catch((err) => {
+    console.error('[bot] launch failed, web app is still running:', err?.message || err);
+  });
   console.log('Telegram bot started (polling).');
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
