@@ -1,5 +1,6 @@
 require('dotenv').config();
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 
@@ -23,6 +24,20 @@ const {
 } = process.env;
 
 let botUsername = null; // filled in once the bot connects, used to build referral links
+let bot = null;
+
+// Polling (bot.launch(), what this app used before) only allows ONE process
+// to poll Telegram at a time — a second instance (even briefly, during a
+// deploy restart) gets a 409 Conflict and crashes, which is exactly what
+// took down a real deploy earlier. Webhook mode has no such limit: Telegram
+// pushes updates to a URL we register instead, so it scales normally.
+//
+// The path includes a hash of the bot token rather than a fixed name, so
+// it's not guessable by anyone scanning for common webhook URLs — without
+// needing yet another secret env var to manage.
+const WEBHOOK_PATH = BOT_TOKEN
+  ? `/telegram-webhook/${crypto.createHash('sha256').update(BOT_TOKEN).digest('hex').slice(0, 32)}`
+  : null;
 
 // Pick which ad network to use. An explicit AD_PROVIDER wins; otherwise
 // whichever provider has an ID set wins, Adsgram first (arbitrary but
@@ -44,6 +59,12 @@ if (!BOT_TOKEN || BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+if (BOT_TOKEN && !BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
+  bot = createBot({ token: BOT_TOKEN, webAppUrl: WEBAPP_URL });
+  app.use(bot.webhookCallback(WEBHOOK_PATH));
+}
+
 // Never let the browser or Telegram's WebView cache the app's own files —
 // otherwise every future update needs a manual cache-clear to actually
 // show up, which isn't obvious and easy to mistake for a broken deploy.
@@ -261,8 +282,7 @@ process.on('unhandledRejection', (reason) => {
   console.error('[unhandledRejection] server kept running:', reason);
 });
 
-if (BOT_TOKEN && !BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
-  const bot = createBot({ token: BOT_TOKEN, webAppUrl: WEBAPP_URL });
+if (bot) {
   bot.telegram
     .getMe()
     .then((me) => {
@@ -271,16 +291,16 @@ if (BOT_TOKEN && !BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
     .catch(() => {
       console.warn('Could not fetch bot username — referral links will be unavailable until it does.');
     });
-  // bot.launch() only resolves when polling stops, and rejects if Telegram
-  // itself has a problem — e.g. "409 Conflict: terminated by other
-  // getUpdates request" when two copies of this bot run at once (this
-  // exact error crashed a real deploy before this .catch existed). Now it
-  // logs instead of crashing; the web app and all its API routes keep
-  // running even if the bot itself can't currently poll.
-  bot.launch().catch((err) => {
-    console.error('[bot] launch failed, web app is still running:', err?.message || err);
-  });
-  console.log('Telegram bot started (polling).');
-  process.once('SIGINT', () => bot.stop('SIGINT'));
-  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+
+  if (WEBAPP_URL) {
+    // Tell Telegram to start pushing updates to our route instead of us
+    // polling for them. Safe to call on every restart — Telegram just
+    // re-confirms the same URL if it's unchanged.
+    bot.telegram
+      .setWebhook(`${WEBAPP_URL}${WEBHOOK_PATH}`)
+      .then(() => console.log('Telegram bot ready (webhook mode).'))
+      .catch((err) => console.error('[bot] setWebhook failed, web app is still running:', err?.message || err));
+  } else {
+    console.warn('WEBAPP_URL is not set — cannot register the Telegram webhook.');
+  }
 }
