@@ -57,8 +57,59 @@ if (!BOT_TOKEN || BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
 }
 
 const app = express();
+// Render (and most hosts) put your app behind a reverse proxy. Without this,
+// every request looks like it comes from the proxy's own IP, which would
+// make per-IP rate limiting below useless — it'd lump every real user
+// together as "one IP" instead of telling them apart.
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
+
+// Lightweight in-memory rate limiter — no new npm dependency needed. Good
+// enough for a single Render instance; if this app ever runs on multiple
+// instances behind a load balancer, these counts would need to move into
+// Redis (like the write-lock above) to stay accurate across all of them.
+function rateLimiter({ windowMs, max, keyFn }) {
+  const hits = new Map(); // key -> { count, resetAt }
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of hits.entries()) if (now > entry.resetAt) hits.delete(key);
+  }, 60_000).unref();
+
+  return (req, res, next) => {
+    const key = keyFn(req);
+    const now = Date.now();
+    let entry = hits.get(key);
+    if (!entry || now > entry.resetAt) {
+      entry = { count: 0, resetAt: now + windowMs };
+      hits.set(key, entry);
+    }
+    entry.count += 1;
+    if (entry.count > max) return res.status(429).json({ error: 'rate_limited' });
+    next();
+  };
+}
+
+// General safety net across every API route — generous enough not to
+// bother a real user, tight enough to blunt a flooding script. If your
+// stress test sends all 100k simulated users' traffic from one source IP
+// (rather than many distinct IPs), raise this number accordingly, since
+// otherwise the test harness itself would look like a single abusive
+// client and start getting 429s.
+app.use('/api/', rateLimiter({ windowMs: 60_000, max: 300, keyFn: (req) => req.ip }));
+
+// Tighter limit specifically on the Tads webhook, keyed by telegram_id
+// rather than IP — Tads calls this from its own servers, so IP-based
+// limiting would either be meaningless (shared IP for all users) or risk
+// blocking Tads' legitimate traffic entirely. Per-telegram_id catches a
+// leaked ?key= secret being replayed rapidly for one user, while leaving
+// store.creditAdReward's existing per-user cooldown as the real backstop.
+const tadsWebhookLimiter = rateLimiter({
+  windowMs: 60_000,
+  max: 10,
+  keyFn: (req) => `tads:${req.query.telegram_id || req.body?.telegram_id || req.ip}`,
+});
 
 if (BOT_TOKEN && !BOT_TOKEN.includes('AAExampleTokenReplaceMe')) {
   bot = createBot({ token: BOT_TOKEN, webAppUrl: WEBAPP_URL });
@@ -144,7 +195,7 @@ app.post('/api/watch-complete', asyncRoute(async (req, res) => {
 // or authenticate these requests, so this route requires its own shared
 // secret (?key=...) appended to the Webhook URL you paste into Tads — set
 // TADS_WEBHOOK_SECRET below to whatever you put in that query param.
-app.all('/api/tads-webhook', asyncRoute(async (req, res) => {
+app.all('/api/tads-webhook', tadsWebhookLimiter, asyncRoute(async (req, res) => {
   const params = { ...req.query, ...(req.body || {}) };
   const { telegram_id: telegramId, widget_id: widgetId, key } = params;
 
