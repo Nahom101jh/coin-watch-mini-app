@@ -254,7 +254,7 @@ app.post('/api/withdraw-request', asyncRoute(async (req, res) => {
 
 // Simple key check — fine for a school project demo, not real auth.
 // The key never touches the client except when the admin types it in.
-app.get('/api/admin/stats', async (req, res) => {
+app.get('/api/admin/stats', asyncRoute(async (req, res) => {
   if (!ADMIN_KEY) return res.status(503).json({ error: 'admin_key_not_set' });
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
 
@@ -264,9 +264,9 @@ app.get('/api/admin/stats', async (req, res) => {
     recentEvents: await store.getRecentEvents(20),
     withdrawalRequests: await store.listWithdrawalRequests(),
   });
-});
+}));
 
-app.post('/api/admin/withdrawals/:id/status', async (req, res) => {
+app.post('/api/admin/withdrawals/:id/status', asyncRoute(async (req, res) => {
   if (!ADMIN_KEY) return res.status(503).json({ error: 'admin_key_not_set' });
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
 
@@ -278,12 +278,12 @@ app.post('/api/admin/withdrawals/:id/status', async (req, res) => {
   const updated = await store.setWithdrawalStatus(req.params.id, status);
   if (!updated) return res.status(404).json({ error: 'not_found' });
   res.json(updated);
-});
+}));
 
 // Manually create or edit a user's balance/name — for correcting a bug,
 // compensating someone, or adding an entry you control directly. Creates
 // the user if the id doesn't already exist.
-app.post('/api/admin/users/:id', async (req, res) => {
+app.post('/api/admin/users/:id', asyncRoute(async (req, res) => {
   if (!ADMIN_KEY) return res.status(503).json({ error: 'admin_key_not_set' });
   if (req.headers['x-admin-key'] !== ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
 
@@ -294,7 +294,7 @@ app.post('/api/admin/users/:id', async (req, res) => {
 
   const updated = await store.adminSetUser(req.params.id, { name, balance });
   res.json(updated);
-});
+}));
 
 function resolveUser(req) {
   // Real Telegram launch: verify the signed initData.
