@@ -64,6 +64,16 @@ async function incrWithExpiry(key, ttlSeconds) {
   return val;
 }
 
+// The Upstash REST client returns null (not an array of nulls) from HMGET
+// when the key doesn't exist at all — unlike standard Redis protocol
+// behavior. Destructuring that directly (const [a, b] = await hmget(...))
+// throws "null is not iterable" instead of just giving you nulls. This
+// wrapper normalizes both cases so every call site can destructure safely.
+async function safeHmget(key, ...fields) {
+  const result = await redis.hmget(key, ...fields);
+  return result === null ? fields.map(() => null) : result;
+}
+
 // Scoped to ONE user — only matters if that same user double-submits a
 // withdrawal at the same instant. Never blocks any other user's requests,
 // unlike the old global lock this replaces.
@@ -148,7 +158,7 @@ async function getUser(id) {
 // Returns { ok: true, user } or { ok: false, reason }
 async function creditAdReward(id, amount, { maxPerDay, minSecondsBetween }) {
   const userKey = `user:${id}`;
-  const [balance, name] = await redis.hmget(userKey, 'balance', 'name');
+  const [balance, name] = await safeHmget(userKey, 'balance', 'name');
   if (balance === null) return { ok: false, reason: 'unknown_user' };
 
   // Cooldown: atomically "claim" the current window. If this fails,
@@ -198,7 +208,7 @@ async function getLeaderboard(limit = 10) {
 
   const entries = await Promise.all(
     topIds.map(async (id) => {
-      const [name, balance] = await redis.hmget(`user:${id}`, 'name', 'balance');
+      const [name, balance] = await safeHmget(`user:${id}`, 'name', 'balance');
       return { name, balance: Number(balance) || 0 };
     })
   );
@@ -244,7 +254,7 @@ async function getReferralStatus(id) {
 
   const eligible = invitedCount >= REQUIRED_INVITES && qualifyingCount >= REQUIRED_QUALIFYING_INVITES;
 
-  const [pendingId, latestId] = await redis.hmget(userKey, 'pendingWithdrawalId', 'latestWithdrawalId');
+  const [pendingId, latestId] = await safeHmget(userKey, 'pendingWithdrawalId', 'latestWithdrawalId');
 
   let hasPendingRequest = false;
   let latestRequestStatus = null;
@@ -284,7 +294,7 @@ async function requestWithdrawal(id) {
     if (!status.eligible) return { ok: false, reason: 'not_eligible' };
     if (status.hasPendingRequest) return { ok: false, reason: 'already_pending' };
 
-    const [name, balance] = await redis.hmget(userKey, 'name', 'balance');
+    const [name, balance] = await safeHmget(userKey, 'name', 'balance');
     const request = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       userId: id,
