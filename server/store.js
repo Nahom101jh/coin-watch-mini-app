@@ -204,7 +204,7 @@ async function creditAdReward(id, amount, { maxPerDay, minSecondsBetween }) {
 async function getLeaderboard(limit = 10) {
   // Highest score (balance) first.
   const topIds = await redis.zrange(LEADERBOARD_KEY, 0, limit - 1, { rev: true });
-  if (!topIds.length) return [];
+  if (!Array.isArray(topIds) || !topIds.length) return [];
 
   const entries = await Promise.all(
     topIds.map(async (id) => {

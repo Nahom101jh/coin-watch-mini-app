@@ -230,9 +230,9 @@ app.all('/api/tads-webhook', tadsWebhookLimiter, asyncRoute(async (req, res) => 
   res.status(200).json({ ok: true });
 }));
 
-app.get('/api/leaderboard', async (_req, res) => {
+app.get('/api/leaderboard', asyncRoute(async (_req, res) => {
   res.json(await store.getLeaderboard(10));
-});
+}));
 
 app.post('/api/referral-status', asyncRoute(async (req, res) => {
   const user = resolveUser(req);
