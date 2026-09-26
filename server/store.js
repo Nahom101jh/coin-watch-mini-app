@@ -204,9 +204,16 @@ async function creditAdReward(id, amount, { maxPerDay, minSecondsBetween }) {
 }
 
 async function getLeaderboard(limit = 10) {
-  // Highest score (balance) first.
-  const topIds = await redis.zrange(LEADERBOARD_KEY, 0, limit - 1, { rev: true });
-  if (!Array.isArray(topIds) || !topIds.length) return [];
+  // We ran into a real discrepancy where the JS client's { rev: true }
+  // option on zrange did not behave like the equivalent raw `ZRANGE key
+  // 0 N REV` command (verified directly against Redis, which worked
+  // correctly). Rather than depend on that option, fetch the top group by
+  // negative index (ascending order) and reverse it ourselves — a
+  // standard, more portable pattern for "top N descending" from a sorted
+  // set that sidesteps the discrepancy entirely.
+  const ascending = await redis.zrange(LEADERBOARD_KEY, -limit, -1);
+  const topIds = Array.isArray(ascending) ? [...ascending].reverse() : [];
+  if (!topIds.length) return [];
 
   const entries = await Promise.all(
     topIds.map(async (id) => {
