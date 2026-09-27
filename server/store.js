@@ -64,16 +64,14 @@ async function incrWithExpiry(key, ttlSeconds) {
   return val;
 }
 
-// The Upstash REST client does not reliably return an array of nulls from
-// HMGET when the key doesn't exist at all — it can come back as null,
-// undefined, or otherwise not array-shaped, unlike standard Redis protocol
-// behavior. Destructuring that directly (const [a, b] = await hmget(...))
-// throws "... is not iterable" instead of just giving you nulls. Checking
-// Array.isArray() (rather than guessing which exact falsy value it returns)
-// catches every one of those shapes, not just one.
+// HMGET (multi-field) turned out to behave unreliably against this
+// specific Upstash setup — verified by comparing it directly against
+// single-field HGET calls, which consistently returned correct data. To
+// avoid depending on HMGET's correctness at all, this fetches each field
+// with its own HGET in parallel instead. Slightly more requests, but
+// provably correct rather than trusting a command we've seen misbehave.
 async function safeHmget(key, ...fields) {
-  const result = await redis.hmget(key, ...fields);
-  return Array.isArray(result) ? result : fields.map(() => null);
+  return Promise.all(fields.map((field) => redis.hget(key, field)));
 }
 
 // Scoped to ONE user — only matters if that same user double-submits a
