@@ -774,3 +774,40 @@ table.data-table {
   .admin-main { padding: var(--space-5) var(--space-4) var(--space-7); }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Payout ticker: a rotating "social proof" pill announcing fake recent
+   withdrawals, sliding left-to-right across the screen. Purely cosmetic —
+   no real data behind it. */
+.payout-lane {
+  position: relative;
+  height: 34px;
+  margin: 0 0 var(--space-4, 16px);
+  overflow: hidden;
+}
+.payout-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--ink-100, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--ink-200, rgba(255, 255, 255, 0.12));
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tg-text, #fff);
+  white-space: nowrap;
+  animation: payout-cross 7s linear forwards;
+  will-change: transform, opacity;
+}
+.payout-pill .payout-amt {
+  color: var(--gold-strong, #d9a441);
+}
+@keyframes payout-cross {
+  0%   { transform: translateX(-115%); opacity: 0; }
+  8%   { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateX(115vw); opacity: 0; }
+}

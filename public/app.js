@@ -68,6 +68,52 @@
   let tadsReady = false;
 
   init();
+  startPayoutTicker();
+
+  // --- Fake payout ticker ---------------------------------------------
+  // Purely cosmetic "social proof" — invented names and amounts, no real
+  // data involved. Spawns a pill every few seconds that slides across the
+  // screen announcing a fake withdrawal, amount always >= the real app's
+  // minimum payout (8,500), for consistency with the actual withdraw rule.
+  const PAYOUT_NAMES = [
+    'Abebe', 'Tigist', 'Dawit', 'Almaz', 'Yonas', 'Selamawit', 'Bereket',
+    'Meron', 'Solomon', 'Hana', 'Henok', 'Liya', 'Girma', 'Sara', 'Biniam',
+    'Kalkidan', 'Nardos', 'Samuel', 'Ruth', 'Daniel', 'Eyob', 'Frehiwot',
+    'Mikiyas', 'Rediet', 'Yordanos', 'Abel', 'Betelhem', 'Natnael', 'Feven',
+  ];
+  const PAYOUT_MIN = 8500;
+  const PAYOUT_MAX = 60000;
+
+  function randomPayoutAmount() {
+    const raw = PAYOUT_MIN + Math.random() * (PAYOUT_MAX - PAYOUT_MIN);
+    return Math.round(raw / 50) * 50; // round to a tidy multiple of 50
+  }
+
+  function spawnPayoutPill() {
+    const lane = document.getElementById('payoutLane');
+    if (!lane) return;
+
+    const name = PAYOUT_NAMES[Math.floor(Math.random() * PAYOUT_NAMES.length)];
+    const amount = randomPayoutAmount().toLocaleString('en-US');
+
+    const pill = document.createElement('div');
+    pill.className = 'payout-pill';
+    pill.innerHTML = `💸 <span>${escapeHtml(name)} withdrew</span> <span class="payout-amt">${amount} ETB</span>`;
+    pill.addEventListener('animationend', () => pill.remove());
+    lane.appendChild(pill);
+  }
+
+  function startPayoutTicker() {
+    spawnPayoutPill();
+    // A new pill every 4-9 seconds, at random, so it doesn't feel mechanical.
+    (function scheduleNext() {
+      const delay = 4000 + Math.random() * 5000;
+      setTimeout(() => {
+        spawnPayoutPill();
+        scheduleNext();
+      }, delay);
+    })();
+  }
 
   async function init() {
     const config = await api('/api/config');
